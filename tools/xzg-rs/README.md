@@ -1,20 +1,6 @@
-# xzg
+# xzg-rs
 
-`xzg` 是用 Rust 编写的 CC2530 烧录工具，可通过 TI CC Debugger 或兼容的 SmartRF04EB 连接开发板。它用 Rust 重写了 Breezio-neo `xzg_cli` 的原生 libusb 烧录流程。
-
-## 环境要求
-
-- Rust 和 Cargo
-- libusb 1.0
-- `pkg-config`，用于让 Cargo 查找系统中的 libusb。Homebrew 上的包名是 `pkgconf`
-
-在 macOS 上，使用 Homebrew 安装依赖：
-
-```sh
-brew install libusb pkgconf
-```
-
-程序会链接到系统安装的 libusb。使用前，请连接 CC Debugger 或 SmartRF04EB，并确认 libusb 可以访问设备。
+`xzg-rs` 是用 Rust 编写的 CC2530 烧录工具，可通过 TI CC Debugger 或兼容的 SmartRF04EB 连接开发板。
 
 ## 编译
 
@@ -43,7 +29,7 @@ tools/xzg-rs/target/release/xzg probe-ti
 tools/xzg-rs/target/release/xzg flash-ti path/to/firmware.hex
 ```
 
-可以使用 `--no-erase`、`--no-write` 或 `--no-verify` 跳过相应步骤。只有在确认目标 Flash 当前状态后，才应跳过这些步骤。
+可以使用 `--no-erase`、`--no-write` 或 `--no-verify` 跳过相应步骤。工具会把 HEX 数据间隙和镜像末尾填为 `0xFF`；启用写入或校验时，这些填充字节也会参与相应步骤。若跳过擦除，目标对应范围应已擦除，否则 Flash 无法把已清零的位改回 1，回读校验会失败。
 
 `check-hex` 和 `probe-ti` 的结果以 JSON 输出；进度信息和错误信息写入标准错误输出（stderr）。
 

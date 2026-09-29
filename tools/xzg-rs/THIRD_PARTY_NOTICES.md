@@ -2,7 +2,7 @@
 
 ## Breezio-neo `xzg_cli`
 
-本工具参考了 `martin-cao/Breezio-neo`，并用 Rust 重写了其中的 USB 烧录流程、TI CC Debugger 协议实现和 Intel HEX 处理逻辑。Breezio-neo 使用 Apache License 2.0 许可。项目保留了原项目及版权声明，详见 [`LICENSE`](LICENSE)。`src/` 中的 Rust 源码是重写版本，不是从原 Python 源码复制而来。
+本工具参考了 `martin-cao/Breezio-neo`，并用 Rust 重写了其中的 USB 烧录流程、TI CC Debugger 协议实现和 Intel HEX 处理逻辑。Breezio-neo 使用 Apache License 2.0 许可。项目保留了原项目及版权声明，详见 [`LICENSE`](LICENSE)。
 
 ## XZG-MT
 
