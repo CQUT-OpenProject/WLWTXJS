@@ -1,0 +1,87 @@
+\documentclass[UTF8,a4paper,zihao=-4,fontset=fandol,oneside]{ctexart}
+
+\usepackage[
+  a4paper,
+  top=1.35cm,
+  bottom=1.35cm,
+  left=2.5cm,
+  right=2.5cm
+]{geometry}
+\usepackage{graphicx}
+\usepackage{array}
+
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0pt}
+\renewcommand{\arraystretch}{1.0}
+\setlength{\fboxsep}{8pt}
+\setlength{\fboxrule}{0.4pt}
+
+\newcommand{\coverfield}[2]{%
+  \makebox[2.0cm][s]{#1} &
+  \underline{\makebox[7.3cm][c]{#2}}\\[0.56cm]
+}
+
+\newcommand{\reportbox}[3]{%
+  \noindent\fbox{%
+    \begin{minipage}[t][#2][t]{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}
+      \noindent\textbf{#1}\par
+      \vspace{0.18cm}
+      #3
+    \end{minipage}%
+  }\par
+  \nointerlineskip
+  \vspace{-\fboxrule}%
+}
+
+\begin{document}
+
+% Cover page translated from the supplied two-page Word report.
+\begin{titlepage}
+  \thispagestyle{empty}
+  \centering
+  \vspace*{1.15cm}
+  \IfFileExists{assets/cqut-logo-horizontal.png}{%
+    \includegraphics[width=11.2cm]{assets/cqut-logo-horizontal.png}%
+  }{{\heiti\fontsize{28pt}{34pt}\selectfont 重庆理工大学}}\par
+
+  \vspace{2.1cm}
+  {\heiti\zihao{2} GPIO 输出控制实验-流水灯\par}
+
+  \vspace{1.85cm}
+  {\zihao{4}
+    \begin{tabular}{>{\raggedleft\arraybackslash}p{2.0cm}@{\hspace{0.45cm}}p{7.3cm}}
+      \coverfield{学\hfill 院}{计算机科学与工程学院}
+      \coverfield{学\hfill 号}{}
+      \coverfield{姓\hfill 名}{}
+      \coverfield{指导教师}{王东}
+      \coverfield{使用教材}{}
+      \coverfield{编写时间}{}
+    \end{tabular}
+  }
+  \vfill
+\end{titlepage}
+
+% The source document has one page of bordered report sections after the cover.
+\thispagestyle{empty}
+\zihao{5}
+\reportbox{实验目的：}{3.95cm}{%
+  \noindent 1)、通过实验掌握CC2530芯片GPIO的配置方法，带你一步步走进嵌入式大门\par
+  \vspace{0.32cm}
+  \noindent 2）、握Led驱动电路及开关Led的原理\par
+}
+\reportbox{实验设备：}{2.55cm}{%
+  \noindent 硬件：PC 机 一台 EB2530（底板、核心板、仿真器、USB 线） 一套\par
+  \vspace{0.28cm}
+  \noindent 软件：2000/XP/win7 系统，IAR 8.10 集成开发环\par
+}
+\reportbox{实验要求：}{1.20cm}{}
+\reportbox{实验原理及过程：}{12.55cm}{%
+  \noindent 1. 实验相关原理\par
+  \vspace{1.05cm}
+  \noindent 2. 实验相关寄存器：\par
+  \vspace{1.05cm}
+  \noindent 3、实验过程\par
+}
+\reportbox{实验总结与收获：}{1.70cm}{}
+
+\end{document}
