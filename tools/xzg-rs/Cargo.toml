@@ -1,0 +1,13 @@
+[package]
+name = "xzg"
+version = "0.1.0"
+edition = "2024"
+description = "Native Rust flasher for CC2530 boards using TI CC Debugger or SmartRF04EB"
+license = "Apache-2.0"
+readme = "README.md"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+rusb = "0.9.4"
+serde_json = "1"
+thiserror = "2"
