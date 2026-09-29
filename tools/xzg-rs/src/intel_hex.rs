@@ -84,16 +84,21 @@ impl IntelHexImage {
 
             match record_type {
                 0x00 => {
-                    let start = address_prefix + u32::from(address);
-                    let end = start + data.len() as u32;
-                    if end > CC2530_MAX_ADDRESS + 1 {
+                    // Keep Intel HEX's 32-bit address calculation wide until
+                    // after validating the complete range. Adding a record
+                    // length to 0xFFFF_FFFF in u32 would wrap and could alias
+                    // an out-of-range address into CC2530 Flash.
+                    let start = u64::from(address_prefix) + u64::from(address);
+                    let end = start + data.len() as u64;
+                    let address_limit = u64::from(CC2530_MAX_ADDRESS) + 1;
+                    if start > address_limit || end > address_limit {
                         return Err(Error::hex(format!(
                             "line {line_number}: data address range 0x{start:05X}..0x{:05X} exceeds 0x{CC2530_MAX_ADDRESS:05X}",
                             end.saturating_sub(1)
                         )));
                     }
                     for (offset, byte) in data.into_iter().enumerate() {
-                        let byte_address = (start + offset as u32) as u16;
+                        let byte_address = (start + offset as u64) as u16;
                         if bytes.insert(byte_address, byte).is_some() {
                             return Err(Error::hex(format!(
                                 "line {line_number}: overlapping data at address 0x{byte_address:04X}"
@@ -307,6 +312,13 @@ mod tests {
             record(0, 1, &[])
         );
         assert!(IntelHexImage::from_text(&overflow).is_err());
+        let wrapping_overflow = format!(
+            "{}\n{}\n{}\n",
+            record(0, 4, &[0xFF, 0xFF]),
+            record(0xFFFF, 0, &[0xA5]),
+            record(0, 1, &[])
+        );
+        assert!(IntelHexImage::from_text(&wrapping_overflow).is_err());
         let upper_edge = format!("{}\n{}\n", record(0xFFFF, 0, &[0xA5]), record(0, 1, &[]));
         let image = IntelHexImage::from_text(&upper_edge).unwrap();
         image.validate_range(CC2530_MAX_ADDRESS).unwrap();
