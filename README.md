@@ -26,9 +26,17 @@
 
 教学文档对应的这三样分别是「Z-Stack & BasicRF」、「IAR EW8051」、「Flash Programmer/IAR & CC Debugger(SmartRF04EB)」。
 
-最终能找到的对应替代品如下：「Contiki & BasicRF & ZNP」、「SDCC」、「cc-tool」。至于如何安装，针对每个实验的组合方式，这里就不展开了。
+本项目以「Contiki & BasicRF & ZNP」替代无线协议栈，以「SDCC」替代 IAR 编译器，并提供 Rust 编写的 `xzg` 烧录工具替代 Flash Programmer。各实验的具体组合方式会在对应实验目录中说明。
+
+在仓库根目录构建 `xzg`：
+
+```sh
+cargo build --release --manifest-path tools/xzg-rs/Cargo.toml
+```
+
+macOS 需要先安装 libusb 和 pkg-config（Homebrew 包名为 `pkgconf`，运行 `brew install libusb pkgconf`）。使用 `tools/xzg-rs/target/release/xzg probe-ti` 检查仿真器与目标芯片，再用 `tools/xzg-rs/target/release/xzg flash-ti <firmware.hex>` 烧录。
 
 > [!NOTE]
-> 1. 「BasicRF」也与 IAR 绑定，使用 SDCC 无法直接编译
+> 1. BasicRF 源码也与 IAR 生态绑定，使用 SDCC 无法直接编译
 > 2. 在 Apple Silicon 上使用 cc-tool 可能需要安装 Rosetta，推荐使用本项目自带的烧录工具
-> 3. [martin-cao/Breezio-neo](https://github.com/martin-cao/Breezio-neo) 为 CC2530 HAL、BasicRF 迁移 SDCC 以及烧录工具等提供了大量参考实现
+> 3. 特别感谢 [martin-cao/Breezio-neo](https://github.com/martin-cao/Breezio-neo) 为 CC2530 HAL、BasicRF 迁移 SDCC 以及烧录工具等提供了大量参考实现
