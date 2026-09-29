@@ -5,7 +5,9 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::cc_debugger::{CcDebugger, XREG_DMAARM, XREG_FADDRH, XREG_FADDRL, XREG_FCTL, XREG_FMAP};
+use crate::cc_debugger::{
+    CcDebugger, TiProbeInfo, XREG_DMAARM, XREG_FADDRH, XREG_FADDRL, XREG_FCTL, XREG_FMAP,
+};
 use crate::error::{Error, Result};
 use crate::intel_hex::{CC2530_MAX_ADDRESS, IntelHexImage};
 use crate::usb::{RusbTransport, UsbTransport};
@@ -14,6 +16,7 @@ pub const FLASH_BANK_SIZE: u32 = 0x8000;
 pub const XBANK_OFFSET: u32 = 0x8000;
 pub const PROG_BLOCK_SIZE: usize = 1024;
 
+const CC2530_CHIP_ID: u16 = 0x2530;
 const XREG_DMA_DESC_LOW: u16 = 0x70D2;
 const XREG_DMA_DESC_HIGH: u16 = 0x70D3;
 
@@ -51,22 +54,56 @@ pub fn flash_ti_debugger(firmware: &Path, options: FlashOptions) -> Result<()> {
     let transport = RusbTransport::connect()?;
     let mut debugger = CcDebugger::new(transport);
 
+    flash_connected_debugger(&mut debugger, &image, options)
+}
+
+fn flash_connected_debugger<T: UsbTransport>(
+    debugger: &mut CcDebugger<T>,
+    image: &[u8],
+    options: FlashOptions,
+) -> Result<()> {
     let info = debugger.probe(false)?;
+    validate_target(&info)?;
     eprintln!(
         "Target CC{:04X}, debugger fw=0x{:04X}/0x{:04X}",
         info.chip_id, info.fw_version, info.fw_revision
     );
-    if options.erase {
-        debugger.chip_erase()?;
+
+    let operation = (|| {
+        if options.erase {
+            debugger.chip_erase()?;
+        }
+        if options.write {
+            write_flash_fast(debugger, image)?;
+        }
+        if options.verify {
+            verify_image(debugger, image)?;
+        }
+        Ok(())
+    })();
+
+    let reset = debugger.reset(false);
+    match (operation, reset) {
+        (Err(error), Err(reset_error)) => {
+            eprintln!("Failed to restore normal mode after flash error: {reset_error}");
+            Err(error)
+        }
+        (Err(error), Ok(())) => Err(error),
+        (Ok(()), Err(error)) => Err(error),
+        (Ok(()), Ok(())) => {
+            eprintln!("Target reset to normal mode");
+            Ok(())
+        }
     }
-    if options.write {
-        write_flash_fast(&mut debugger, &image)?;
+}
+
+fn validate_target(info: &TiProbeInfo) -> Result<()> {
+    if info.chip_id != CC2530_CHIP_ID {
+        return Err(Error::protocol(format!(
+            "unsupported target chip ID 0x{:04X}; expected CC2530 (0x{CC2530_CHIP_ID:04X})",
+            info.chip_id
+        )));
     }
-    if options.verify {
-        verify_image(&mut debugger, &image)?;
-    }
-    debugger.reset(false)?;
-    eprintln!("Target reset to normal mode");
     Ok(())
 }
 
@@ -257,17 +294,141 @@ fn check_image_chunk(offset: usize, expected: &[u8], actual: &[u8]) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use super::{FLASH_BANK_SIZE, check_image_chunk, create_read_proc, image_from_hex};
-    use crate::error::Error;
+    use std::collections::VecDeque;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use super::{
+        FLASH_BANK_SIZE, FlashOptions, check_image_chunk, create_read_proc,
+        flash_connected_debugger, image_from_hex,
+    };
+    use crate::cc_debugger::{CcDebugger, Timing};
+    use crate::error::{Error, Result};
     use crate::intel_hex::IntelHexImage;
+    use crate::usb::UsbTransport;
+
+    #[derive(Clone, Default)]
+    struct UsbLog {
+        control_outs: Arc<Mutex<Vec<(u8, u16, u16)>>>,
+        bulk_outs: Arc<Mutex<Vec<Vec<u8>>>>,
+    }
+
+    struct FakeFlashUsb {
+        control_reads: VecDeque<Vec<u8>>,
+        bulk_reads: VecDeque<Vec<u8>>,
+        log: UsbLog,
+    }
+
+    impl UsbTransport for FakeFlashUsb {
+        fn programmer(&self) -> &'static str {
+            "CC Debugger"
+        }
+
+        fn control_out(&mut self, request: u8, value: u16, index: u16, _: &[u8]) -> Result<()> {
+            self.log
+                .control_outs
+                .lock()
+                .unwrap()
+                .push((request, value, index));
+            Ok(())
+        }
+
+        fn control_in(&mut self, _: u8, _: u16, _: u16, _: usize) -> Result<Vec<u8>> {
+            self.control_reads
+                .pop_front()
+                .ok_or_else(|| Error::protocol("no fake control response"))
+        }
+
+        fn bulk_out(&mut self, data: &[u8]) -> Result<()> {
+            self.log.bulk_outs.lock().unwrap().push(data.to_vec());
+            Ok(())
+        }
+
+        fn bulk_in(&mut self, length: usize) -> Result<Vec<u8>> {
+            Ok(self
+                .bulk_reads
+                .pop_front()
+                .unwrap_or_else(|| vec![0; length]))
+        }
+    }
+
+    fn device_info(chip_id: u16) -> Vec<u8> {
+        let [low, high] = chip_id.to_le_bytes();
+        vec![low, high, 1, 0, 2, 0]
+    }
+
+    fn zero_timing() -> Timing {
+        Timing {
+            reset_delay: Duration::ZERO,
+            debug_settle: Duration::ZERO,
+            erase_timeout: Duration::ZERO,
+            erase_poll: Duration::ZERO,
+            flash_timeout: Duration::ZERO,
+            flash_poll: Duration::ZERO,
+        }
+    }
 
     #[test]
-    fn pads_sparse_image_with_erased_flash_value() {
+    fn pads_sparse_image_gaps_and_tail_with_erased_flash_value() {
         let image = IntelHexImage::from_text(":01001000AA45\n:00000001FF\n").unwrap();
         let padded = image_from_hex(&image, 1024).unwrap();
         assert_eq!(padded.len(), 1024);
         assert_eq!(padded[0x10], 0xAA);
-        assert_eq!(padded[0], 0xFF);
+        assert!(padded[..0x10].iter().all(|byte| *byte == 0xFF));
+        assert!(padded[0x11..].iter().all(|byte| *byte == 0xFF));
+    }
+
+    #[test]
+    fn rejects_non_cc2530_before_issuing_debugger_or_flash_commands() {
+        let log = UsbLog::default();
+        let fake = FakeFlashUsb {
+            control_reads: VecDeque::from([device_info(0x2531)]),
+            bulk_reads: VecDeque::new(),
+            log: log.clone(),
+        };
+        let mut debugger = CcDebugger::with_timing(fake, zero_timing());
+
+        let error = flash_connected_debugger(
+            &mut debugger,
+            &[0xFF; 1024],
+            FlashOptions {
+                erase: true,
+                write: true,
+                verify: true,
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("expected CC2530"));
+        assert!(log.control_outs.lock().unwrap().is_empty());
+        assert!(log.bulk_outs.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn attempts_normal_reset_after_flash_operation_failure() {
+        let log = UsbLog::default();
+        let fake = FakeFlashUsb {
+            control_reads: VecDeque::from([device_info(0x2530), device_info(0x2530)]),
+            bulk_reads: VecDeque::from([vec![0]]),
+            log: log.clone(),
+        };
+        let mut debugger = CcDebugger::with_timing(fake, zero_timing());
+
+        let error = flash_connected_debugger(
+            &mut debugger,
+            &[0xFF; 1024],
+            FlashOptions {
+                erase: true,
+                write: false,
+                verify: false,
+            },
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("chip erase timed out"));
+        let control_outs = log.control_outs.lock().unwrap();
+        assert!(control_outs.contains(&(0xC9, 0, 1)));
+        assert_eq!(control_outs.last(), Some(&(0xC9, 0, 0)));
     }
 
     #[test]
