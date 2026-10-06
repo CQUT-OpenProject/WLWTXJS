@@ -28,15 +28,19 @@
 
 本项目以「Contiki & BasicRF & ZNP」替代无线协议栈，以「SDCC」替代 IAR 编译器，并提供 Rust 编写的 `xzg` 烧录工具替代 Flash Programmer。各实验的具体组合方式会在对应实验目录中说明。
 
+## 烧录工具
+
 在仓库根目录构建 `xzg`：
 
 ```sh
 cargo build --release --manifest-path tools/xzg-rs/Cargo.toml
 ```
 
-macOS 需要先安装 libusb 和 pkg-config（Homebrew 包名为 `pkgconf`，运行 `brew install libusb pkgconf`）。使用 `tools/xzg-rs/target/release/xzg probe-ti` 检查仿真器与目标芯片，再用 `tools/xzg-rs/target/release/xzg flash-ti <firmware.hex>` 烧录。
+macOS 需要先安装 libusb 和 pkg-config 。使用 `tools/xzg-rs/target/release/xzg probe-ti` 检查仿真器与目标芯片，再用 `tools/xzg-rs/target/release/xzg flash-ti <firmware.hex>` 烧录。
 
-可复用的 CC2530 HAL 和 TI Basic RF 源码位于 `sdk/`。其中寄存器定义 `<cc2530.h>` 由 SDCC 的 MCS-51 工具链提供，项目不重复复制；SDK 组件的来源与 TI 使用条款见 [`sdk/THIRD_PARTY_NOTICES.md`](sdk/THIRD_PARTY_NOTICES.md)。
+## SDK
+
+可复用的 CC2530 HAL 和 TI Basic RF 源码位于 `sdk/`。SDK 组件的来源与 TI 使用条款见 [`sdk/THIRD_PARTY_NOTICES.md`](sdk/THIRD_PARTY_NOTICES.md)。
 
 > [!NOTE]
 > 1. BasicRF 源码也与 IAR 生态绑定，使用 SDCC 无法直接编译
