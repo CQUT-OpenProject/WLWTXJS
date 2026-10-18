@@ -1,0 +1,38 @@
+# LaTeX auxiliary and build files (PDF output is not ignored)
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.dvi
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+
+# Tectonic
+.tectonic/
+
+# Vendor sync local cache (lock file is tracked)
+.cache/cqut-report-vendor/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Editor and IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo

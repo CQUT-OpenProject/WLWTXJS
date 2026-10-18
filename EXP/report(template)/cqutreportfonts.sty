@@ -1,0 +1,225 @@
+%% Copyright 2026 CQUT-OpenProject
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, version 1.3c.
+%%
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{cqutreportfonts}[2026/10/18 v1.0 CQUT thesis-aligned typography]
+
+\RequirePackage{fontspec}
+\RequirePackage{xeCJK}
+\RequirePackage{setspace}
+
+\newif\ifcqut@fandol
+\cqut@fandolfalse
+\newif\ifcqut@nobody
+\cqut@nobodyfalse
+\newif\ifcqut@familiesdefined
+\cqut@familiesdefinedfalse
+\newif\ifcqut@strict
+\cqut@strictfalse
+
+\DeclareOption{fandol}{\cqut@fandoltrue}
+\DeclareOption{nobody}{\cqut@nobodytrue}
+\DeclareOption{strict}{\cqut@stricttrue}
+\DeclareOption{school}{\cqut@fandolfalse}
+\ProcessOptions\relax
+
+\newcommand{\SongtiName}{Songti SC}
+\newcommand{\HeitiName}{Heiti SC}
+\newcommand{\FangsongName}{STFangsong}
+
+\newcommand{\cqut@pickSongti}{%
+  \IfFontExistsTF{Songti SC}{%
+    \renewcommand{\SongtiName}{Songti SC}%
+  }{%
+    \IfFontExistsTF{STSong}{%
+      \renewcommand{\SongtiName}{STSong}%
+    }{%
+      \IfFontExistsTF{SimSun}{%
+        \renewcommand{\SongtiName}{SimSun}%
+      }{%
+        \renewcommand{\SongtiName}{Noto Serif CJK SC}%
+      }%
+    }%
+  }%
+}
+
+\newcommand{\cqut@pickHeiti}{%
+  \IfFontExistsTF{Heiti SC}{%
+    \renewcommand{\HeitiName}{Heiti SC}%
+  }{%
+    \IfFontExistsTF{STHeiti}{%
+      \renewcommand{\HeitiName}{STHeiti}%
+    }{%
+      \IfFontExistsTF{SimHei}{%
+        \renewcommand{\HeitiName}{SimHei}%
+      }{%
+        \renewcommand{\HeitiName}{FandolHei}%
+      }%
+    }%
+  }%
+}
+
+\newcommand{\cqut@pickFangsong}{%
+  \IfFontExistsTF{STFangsong}{%
+    \renewcommand{\FangsongName}{STFangsong}%
+  }{%
+    \renewcommand{\FangsongName}{\SongtiName}%
+  }%
+}
+
+\newcommand{\cqut@setCJKBoldMain}[1]{%
+  \IfFontExistsTF{Songti SC Bold}{%
+    \setCJKmainfont[BoldFont={Songti SC Bold}]{#1}%
+  }{%
+    \setCJKmainfont[AutoFakeBold=2.2]{#1}%
+  }%
+}
+
+\newcommand{\cqut@setCJKBoldSans}[1]{%
+  \IfFontExistsTF{Heiti SC}{%
+    \setCJKsansfont[BoldFont={Heiti SC}]{#1}%
+  }{%
+    \setCJKsansfont[AutoFakeBold=2.2]{#1}%
+  }%
+}
+
+\newcommand{\cqut@setCJKFamilies}{%
+  \IfFontExistsTF{Songti SC Bold}{%
+    \setCJKfamilyfont{zhsong}[BoldFont={Songti SC Bold}]{\SongtiName}%
+  }{%
+    \setCJKfamilyfont{zhsong}[AutoFakeBold=2.2]{\SongtiName}%
+  }%
+  \IfFontExistsTF{Heiti SC}{%
+    \setCJKfamilyfont{zhhei}[BoldFont={Heiti SC}]{\HeitiName}%
+  }{%
+    \setCJKfamilyfont{zhhei}[AutoFakeBold=2.2]{\HeitiName}%
+  }%
+  \providecommand{\songti}{\CJKfamily{zhsong}}%
+  \providecommand{\heiti}{\CJKfamily{zhhei}}%
+}
+
+\newcommand{\cqut@defineNamedFamilies}{%
+  \ifcqut@familiesdefined\else
+    \global\cqut@familiesdefinedtrue
+    \ifcqut@strict
+      \newCJKfontfamily\cqutsongti[BoldFont={Songti SC Bold}]{Songti SC}%
+      \newCJKfontfamily\cqutheiti[BoldFont={Heiti SC}]{Heiti SC}%
+      \newCJKfontfamily\cqutfangsong{STFangsong}%
+    \else
+      \IfFontExistsTF{Songti SC Bold}{%
+        \newCJKfontfamily\cqutsongti[BoldFont={Songti SC Bold}]{\SongtiName}%
+      }{%
+        \newCJKfontfamily\cqutsongti[AutoFakeBold=2.2]{\SongtiName}%
+      }%
+      \IfFontExistsTF{Heiti SC}{%
+        \newCJKfontfamily\cqutheiti[BoldFont={Heiti SC}]{\HeitiName}%
+      }{%
+        \newCJKfontfamily\cqutheiti[AutoFakeBold=2.2]{\HeitiName}%
+      }%
+      \newCJKfontfamily\cqutfangsong{\FangsongName}%
+    \fi
+  \fi
+}
+
+\newcommand{\cqut@applyStrictThesisFonts}{%
+  \renewcommand{\SongtiName}{Songti SC}%
+  \renewcommand{\HeitiName}{Heiti SC}%
+  \renewcommand{\FangsongName}{STFangsong}%
+  \setmainfont{Times New Roman}%
+  \setCJKmainfont[BoldFont={Songti SC Bold}]{Songti SC}%
+  \setCJKsansfont[BoldFont={Heiti SC}]{Heiti SC}%
+  \setCJKmonofont{Songti SC}%
+  \setCJKfamilyfont{zhsong}[BoldFont={Songti SC Bold}]{Songti SC}%
+  \setCJKfamilyfont{zhhei}[BoldFont={Heiti SC}]{Heiti SC}%
+  \providecommand{\songti}{\CJKfamily{zhsong}}%
+  \providecommand{\heiti}{\CJKfamily{zhhei}}%
+  \cqut@defineNamedFamilies
+}
+
+\newcommand{\cqutSetLatinMonofont}{%
+  \IfFontExistsTF{Menlo}{%
+    \setmonofont{Menlo}[Scale=MatchLowercase]%
+  }{%
+    \IfFontExistsTF{Monaco}{%
+      \setmonofont{Monaco}[Scale=MatchLowercase]%
+    }{%
+      \setmonofont{Latin Modern Mono}[Scale=MatchLowercase]%
+    }%
+  }%
+}
+
+\newcommand{\cqutApplyThesisFonts}{%
+  \ifcqut@strict
+    \cqut@applyStrictThesisFonts
+  \else\ifcqut@fandol
+    \setmainfont{TeX Gyre Termes}%
+    \setsansfont{TeX Gyre Heros}%
+    \setCJKmainfont{FandolSong}%
+    \setCJKsansfont{FandolHei}%
+    \setCJKmonofont{FandolFang}%
+    \setCJKfamilyfont{zhsong}{FandolSong}%
+    \setCJKfamilyfont{zhhei}{FandolHei}%
+    \renewcommand{\SongtiName}{FandolSong}%
+    \renewcommand{\HeitiName}{FandolHei}%
+    \renewcommand{\FangsongName}{FandolFang}%
+    \cqutSetLatinMonofont
+    \cqut@defineNamedFamilies
+    \providecommand{\songti}{\CJKfamily{zhsong}}%
+    \providecommand{\heiti}{\CJKfamily{zhhei}}%
+  \else
+    \cqut@pickSongti
+    \cqut@pickHeiti
+    \cqut@pickFangsong
+    \setmainfont{Times New Roman}%
+    \cqut@setCJKBoldMain{\SongtiName}%
+    \cqut@setCJKBoldSans{\HeitiName}%
+    \setCJKmonofont{\SongtiName}%
+    \cqut@setCJKFamilies
+    \cqutSetLatinMonofont
+    \cqut@defineNamedFamilies
+  \fi\fi
+  \XeTeXlinebreaklocale "zh"
+  \XeTeXlinebreakskip = 0pt plus 1pt
+}
+
+\let\cqutApplySchoolFonts\cqutApplyThesisFonts
+
+\newcommand{\cqutBeginReportBody}{%
+  \@ifundefined{zihao}{%
+    \fontsize{12pt}{18pt}\selectfont
+    \setstretch{1.5}%
+  }{%
+    \zihao{-4}%
+    \setstretch{1.5}%
+  }%
+  \setlength{\parindent}{2em}%
+  \setlength{\parskip}{0pt}%
+}
+
+\newcommand{\cqutCodeFontSize}{\fontsize{9pt}{13pt}\selectfont}
+
+\newcommand{\cqutHeitiFamily}{\cqutheiti}
+
+\RequirePackage{graphicx}
+
+\newcommand{\cqutCoverLogoHorizontal}[1][11.2cm]{%
+  \IfFileExists{assets/cqut-logo-horizontal.png}{%
+    \includegraphics[width=#1]{assets/cqut-logo-horizontal.png}%
+  }{%
+    \PackageWarning{cqutreportfonts}{Missing vendored assets/cqut-logo-horizontal.png}%
+  }%
+}
+
+% \url uses \UrlFont (hyperref); default \ttfamily lacks CJK — use songti at \begin{document}.
+\newcommand{\cqut@urlFont}{%
+  \cqutsongti\fontsize{10.5pt}{12.6pt}\selectfont
+}
+\AtBeginDocument{%
+  \@ifpackageloaded{hyperref}{%
+    \renewcommand{\UrlFont}{\cqut@urlFont}%
+  }{}%
+}
+
+\endinput
