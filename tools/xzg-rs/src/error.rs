@@ -14,6 +14,8 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("no TI CC Debugger or compatible SmartRF04EB found via libusb")]
     NoDevice,
+    #[error("no supported debugger found at USB bus {bus}, address {address}")]
+    DeviceNotFound { bus: u8, address: u8 },
     #[error("Intel HEX error: {0}")]
     Hex(String),
     #[error("CC2530 protocol error: {0}")]

@@ -42,6 +42,8 @@ cargo build --release --manifest-path tools/xzg-rs/Cargo.toml
 
 macOS 需要先安装 libusb 和 pkg-config 。使用 `tools/xzg-rs/target/release/xzg probe-ti` 检查仿真器与目标芯片，再用 `tools/xzg-rs/target/release/xzg flash-ti <firmware.hex>` 烧录。
 
+同时连接多个调试器时，先用 `tools/xzg-rs/target/release/xzg list-ti` 查看各调试器的 USB bus/address，再用 `--device <bus>:<address>` 指定目标，例如 `xzg --device 1:13 probe-ti`。
+
 ## SDK
 
 可复用的 CC2530 HAL 和 TI Basic RF 源码位于 `sdk/`。SDK 组件的来源与 TI 使用条款见 [`sdk/THIRD_PARTY_NOTICES.md`](sdk/THIRD_PARTY_NOTICES.md)。

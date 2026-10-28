@@ -304,6 +304,10 @@ impl<T: UsbTransport> CcDebugger<T> {
         self.init_debug_interface()?;
         eprintln!("Erasing chip");
         self.send_debug_instructions(&[WRAPPER_DEBUG_EXEC, 0x14])?;
+        // Give the debugger time to start the erase before polling its status.
+        // Without this delay a fast host can read a stale "not busy" status and
+        // proceed to write while the chip is still erasing.
+        std::thread::sleep(self.timing.erase_poll);
         let deadline = Instant::now() + self.timing.erase_timeout;
         while Instant::now() < deadline {
             self.send_debug_instructions(&[WRAPPER_DEBUG_EXEC_READ, DEBUG_CMD_READ_STATUS])?;
@@ -327,8 +331,11 @@ fn hex_bytes(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-pub fn probe_ti_debugger(read_ieee: bool) -> Result<TiProbeInfo> {
-    let transport = RusbTransport::connect()?;
+pub fn probe_ti_debugger(
+    read_ieee: bool,
+    selector: Option<crate::usb::DeviceSelector>,
+) -> Result<TiProbeInfo> {
+    let transport = RusbTransport::connect_with(selector)?;
     CcDebugger::new(transport).probe(read_ieee)
 }
 

@@ -29,8 +29,23 @@ tools/xzg-rs/target/release/xzg probe-ti
 tools/xzg-rs/target/release/xzg flash-ti path/to/firmware.hex
 ```
 
-可以使用 `--no-erase`、`--no-write` 或 `--no-verify` 跳过相应步骤。工具会把 HEX 数据间隙和镜像末尾填为 `0xFF`；启用写入或校验时，这些填充字节也会参与相应步骤。若跳过擦除，目标对应范围应已擦除，否则 Flash 无法把已清零的位改回 1，回读校验会失败。
+可以使用 `--no-erase`、`--no-write` 和 `--no-verify` 跳过相应步骤。工具会在 HEX 数据间隙和镜像末尾填充 `0xFF`；启用写入或校验时，这些填充字节也会参与相应步骤。若跳过擦除，目标对应范围应已擦除，否则 Flash 无法把已清零的位改回 1，回读校验会失败。
 
 `check-hex` 和 `probe-ti` 的结果以 JSON 输出；进度信息和错误信息写入标准错误输出（stderr）。
+
+## 多个调试器
+
+同时连接多个调试器时，先用 `list-ti` 查看每个调试器的 USB bus/address 和 `selector`：
+
+```sh
+tools/xzg-rs/target/release/xzg list-ti
+```
+
+再用 `--device <bus>:<address>` 指定要操作的调试器。该参数可以放在子命令之前或之后：
+
+```sh
+tools/xzg-rs/target/release/xzg --device 1:13 probe-ti
+tools/xzg-rs/target/release/xzg --device 1:14 flash-ti path/to/firmware.hex
+```
 
 项目来源与许可信息见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

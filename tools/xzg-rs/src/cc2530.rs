@@ -48,10 +48,14 @@ pub fn image_from_hex(image: &IntelHexImage, block_size: usize) -> Result<Vec<u8
     Ok(data)
 }
 
-pub fn flash_ti_debugger(firmware: &Path, options: FlashOptions) -> Result<()> {
+pub fn flash_ti_debugger(
+    firmware: &Path,
+    options: FlashOptions,
+    selector: Option<crate::usb::DeviceSelector>,
+) -> Result<()> {
     let hex_image = IntelHexImage::from_file(firmware)?;
     let image = image_from_hex(&hex_image, PROG_BLOCK_SIZE)?;
-    let transport = RusbTransport::connect()?;
+    let transport = RusbTransport::connect_with(selector)?;
     let mut debugger = CcDebugger::new(transport);
 
     flash_connected_debugger(&mut debugger, &image, options)
@@ -154,6 +158,9 @@ pub fn write_flash_fast<T: UsbTransport>(debugger: &mut CcDebugger<T>, image: &[
 fn wait_flash_idle<T: UsbTransport>(debugger: &mut CcDebugger<T>) -> Result<()> {
     let timing = debugger.timing();
     let deadline = Instant::now() + timing.flash_timeout;
+    // Let the flash controller begin the operation before checking FCTL. A fast
+    // host can otherwise observe a stale idle bit immediately after arming it.
+    std::thread::sleep(timing.flash_poll);
     while Instant::now() < deadline {
         let fctl = debugger.read_xdata(XREG_FCTL, 1)?[0];
         if fctl & 0x80 == 0 {

@@ -20,6 +20,22 @@ const SUPPORTED_DEVICES: [(u16, u16, &str); 2] = [
     (VID_SMARTRF04EB, PID_SMARTRF04EB, "SmartRF04EB"),
 ];
 
+/// Selects one debugger when several are connected at the same time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DeviceSelector {
+    pub bus: u8,
+    pub address: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UsbDeviceInfo {
+    pub bus: u8,
+    pub address: u8,
+    pub vendor_id: u16,
+    pub product_id: u16,
+    pub programmer: &'static str,
+}
+
 pub trait UsbTransport {
     fn programmer(&self) -> &'static str;
     fn control_out(&mut self, request: u8, value: u16, index: u16, data: &[u8]) -> Result<()>;
@@ -40,26 +56,45 @@ pub struct RusbTransport {
 }
 
 impl RusbTransport {
-    pub fn connect() -> Result<Self> {
+    pub fn connect_with(selector: Option<DeviceSelector>) -> Result<Self> {
         let context = Context::new()?;
         let devices = context.devices()?;
         let mut candidates: Vec<(Device<Context>, u16, u16)> = Vec::new();
         for device in devices.iter() {
             let descriptor = device.device_descriptor()?;
-            candidates.push((device, descriptor.vendor_id(), descriptor.product_id()));
+            if supported_programmer(descriptor.vendor_id(), descriptor.product_id()).is_some() {
+                candidates.push((device, descriptor.vendor_id(), descriptor.product_id()));
+            }
         }
-        let available: Vec<_> = candidates
-            .iter()
-            .map(|(_, vendor_id, product_id)| (*vendor_id, *product_id))
-            .collect();
-        let (vendor_id, product_id, programmer) =
-            select_supported_device(&available).ok_or(Error::NoDevice)?;
-        let (device, _, _) = candidates
-            .into_iter()
-            .find(|(_, candidate_vid, candidate_pid)| {
-                *candidate_vid == vendor_id && *candidate_pid == product_id
-            })
-            .ok_or(Error::NoDevice)?;
+
+        let (device, programmer) = if let Some(selector) = selector {
+            let (device, vendor_id, product_id) = candidates
+                .into_iter()
+                .find(|(device, _, _)| {
+                    device.bus_number() == selector.bus && device.address() == selector.address
+                })
+                .ok_or(Error::DeviceNotFound {
+                    bus: selector.bus,
+                    address: selector.address,
+                })?;
+            let programmer = supported_programmer(vendor_id, product_id).ok_or(Error::NoDevice)?;
+            (device, programmer)
+        } else {
+            let available: Vec<_> = candidates
+                .iter()
+                .map(|(_, vendor_id, product_id)| (*vendor_id, *product_id))
+                .collect();
+            let (vendor_id, product_id, programmer) =
+                select_supported_device(&available).ok_or(Error::NoDevice)?;
+            let (device, _, _) = candidates
+                .into_iter()
+                .find(|(_, candidate_vid, candidate_pid)| {
+                    *candidate_vid == vendor_id && *candidate_pid == product_id
+                })
+                .ok_or(Error::NoDevice)?;
+            (device, programmer)
+        };
+
         let handle = device.open()?;
         match handle.set_active_configuration(1) {
             Ok(()) | Err(rusb::Error::Busy) => {}
@@ -140,6 +175,35 @@ pub fn select_supported_device(available: &[(u16, u16)]) -> Option<(u16, u16, &'
         .iter()
         .find(|(vid, pid, _)| available.contains(&(*vid, *pid)))
         .map(|(vid, pid, name)| (*vid, *pid, *name))
+}
+
+fn supported_programmer(vendor_id: u16, product_id: u16) -> Option<&'static str> {
+    SUPPORTED_DEVICES
+        .iter()
+        .find(|(vid, pid, _)| *vid == vendor_id && *pid == product_id)
+        .map(|(_, _, name)| *name)
+}
+
+/// Enumerates every supported debugger visible through libusb.
+pub fn list_supported_devices() -> Result<Vec<UsbDeviceInfo>> {
+    let context = Context::new()?;
+    let devices = context.devices()?;
+    let mut found = Vec::new();
+    for device in devices.iter() {
+        let descriptor = device.device_descriptor()?;
+        if let Some(programmer) =
+            supported_programmer(descriptor.vendor_id(), descriptor.product_id())
+        {
+            found.push(UsbDeviceInfo {
+                bus: device.bus_number(),
+                address: device.address(),
+                vendor_id: descriptor.vendor_id(),
+                product_id: descriptor.product_id(),
+                programmer,
+            });
+        }
+    }
+    Ok(found)
 }
 
 pub fn check_transfer_length(

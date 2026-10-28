@@ -18,6 +18,9 @@ use serde_json::json;
 #[derive(Debug, Parser)]
 #[command(name = "xzg", version, about = "CC2530 programming helper")]
 struct Cli {
+    /// Select a debugger by USB bus:address when several are connected.
+    #[arg(long, global = true, value_parser = parse_device_selector)]
+    device: Option<usb::DeviceSelector>,
     #[command(subcommand)]
     command: Command,
 }
@@ -26,6 +29,8 @@ struct Cli {
 enum Command {
     /// Validate an Intel HEX firmware image.
     CheckHex { firmware: PathBuf },
+    /// List connected TI CC Debugger / SmartRF04EB devices.
+    ListTi,
     /// Probe a TI CC Debugger or compatible SmartRF04EB.
     ProbeTi {
         /// Skip reading the target's factory IEEE address.
@@ -47,8 +52,22 @@ enum Command {
     },
 }
 
+fn parse_device_selector(value: &str) -> std::result::Result<usb::DeviceSelector, String> {
+    let (bus, address) = value
+        .split_once(':')
+        .ok_or_else(|| "expected USB bus and address as BUS:ADDRESS".to_string())?;
+    let bus = bus
+        .parse::<u8>()
+        .map_err(|_| "USB bus must be an integer from 0 to 255".to_string())?;
+    let address = address
+        .parse::<u8>()
+        .map_err(|_| "USB address must be an integer from 0 to 255".to_string())?;
+    Ok(usb::DeviceSelector { bus, address })
+}
+
 fn run(cli: Cli) -> Result<()> {
-    match cli.command {
+    let Cli { device, command } = cli;
+    match command {
         Command::CheckHex { firmware } => {
             let image = IntelHexImage::from_file(&firmware)?;
             let summary = json!({
@@ -59,8 +78,24 @@ fn run(cli: Cli) -> Result<()> {
             });
             println!("{}", serde_json::to_string_pretty(&summary)?);
         }
+        Command::ListTi => {
+            let devices: Vec<_> = usb::list_supported_devices()?
+                .into_iter()
+                .map(|info| {
+                    json!({
+                        "programmer": info.programmer,
+                        "bus": info.bus,
+                        "address": info.address,
+                        "selector": format!("{}:{}", info.bus, info.address),
+                        "vendor_id": format!("0x{:04X}", info.vendor_id),
+                        "product_id": format!("0x{:04X}", info.product_id),
+                    })
+                })
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&devices)?);
+        }
         Command::ProbeTi { no_ieee } => {
-            let info = cc_debugger::probe_ti_debugger(!no_ieee)?;
+            let info = cc_debugger::probe_ti_debugger(!no_ieee, device)?;
             let output = json!({
                 "programmer": info.programmer,
                 "chip_id": format!("0x{:04X}", info.chip_id),
@@ -82,6 +117,7 @@ fn run(cli: Cli) -> Result<()> {
                 write: !no_write,
                 verify: !no_verify,
             },
+            device,
         )?,
     }
     Ok(())
@@ -134,6 +170,25 @@ mod tests {
                 no_verify: true,
                 ..
             }
+        ));
+    }
+
+    #[test]
+    fn cli_accepts_device_selector_before_or_after_subcommand() {
+        let before = Cli::try_parse_from(["xzg", "--device", "1:5", "probe-ti"]).unwrap();
+        assert_eq!(before.device.map(|d| (d.bus, d.address)), Some((1, 5)));
+
+        let after = Cli::try_parse_from(["xzg", "probe-ti", "--device", "2:7"]).unwrap();
+        assert_eq!(after.device.map(|d| (d.bus, d.address)), Some((2, 7)));
+
+        assert!(Cli::try_parse_from(["xzg", "probe-ti", "--device", "1"]).is_err());
+    }
+
+    #[test]
+    fn cli_exposes_list_ti_command() {
+        assert!(matches!(
+            Cli::try_parse_from(["xzg", "list-ti"]).unwrap().command,
+            Command::ListTi
         ));
     }
 
